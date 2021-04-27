@@ -1,0 +1,255 @@
+// including libraries (temp/hum sensor,lcd display)
+#include <dht_nonblocking.h>
+#include <LiquidCrystal.h>
+
+
+#define DHT_SENSOR_TYPE DHT_TYPE_11  //specification of the dht sensor
+#define sensorPin A0    //port A0 connected to the water level sensor >>> analog
+#define pResistor A1    //port A1 connected to the photoresistor >>> analog
+#define DHT_SENSOR_PIN 2//port 2  connected to the temperature and humidity sensors >>> digital
+#define BUTTON_PIN 13   //port 13  connected to the button >>> digital
+#define sensorPower 4   //port 4  connected to the water level sensor >>> digital
+#define ledPin 5        //port 5  connected to the led >>> digital
+
+//defining the different states
+#define STATUS_STATE 0
+#define NUMBERS_STATE 1
+
+
+//initialize the temperature & humidity sensor
+DHT_nonblocking dht_sensor( DHT_SENSOR_PIN, DHT_SENSOR_TYPE );
+
+// initialize the library with the numbers of the interface pins
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
+//creating a custom glyph for the ° (degree) sign
+byte deg[8] =
+{
+  0b00001100,
+  0b00010010,
+  0b00010010,
+  0b00001100,
+  0b00000000,
+  0b00000000,
+  0b00000000,
+  0b00000000
+};
+
+//defining variables
+int buttonState = 0;
+int lastButtonState = 0;
+int state = STATUS_STATE;
+int waterLevelValue = 0;
+int lightValue;
+
+//Choose your name here
+char name[] = "Roman";
+
+void setup( )
+{
+  Serial.begin(9600);  //initialize the serial port
+  while (!Serial) {}
+  pinMode(ledPin, OUTPUT);  //output signal on port ledPin = 5 >>> digital
+  pinMode(pResistor, INPUT);  //input signal on port pResistor = A1 >>> analog
+  pinMode(sensorPower, OUTPUT);  //output signal on port ledPin = 4 >>> digital
+  pinMode(BUTTON_PIN, INPUT);   //set the button to port BUTTON_PIN = 3 >>> digital
+  digitalWrite(sensorPower, LOW);   //set to LOW so no power flows through the sensor
+  lcd.begin(16, 2);  //initialize the lcd screen.
+  lcd.createChar(1, deg);   //create the ° glyph in the lcd screen memory
+  welcome(name);   //runs the welcome function
+}
+
+
+
+
+
+// return a value only if temperature and humidity valid values
+static bool measure_environment( float *temperature, float *humidity )
+{
+  static unsigned long measurement_timestamp = millis( );
+  /* Measure once every four seconds. */
+  if ( millis( ) - measurement_timestamp > 3000ul )
+  {
+    if ( dht_sensor.measure( temperature, humidity ) == true )
+    {
+      measurement_timestamp = millis( );
+      return ( true );
+    }
+  }
+  return ( false );
+}
+
+
+
+
+
+
+void loop() {
+  //change state when the button is pushed
+  buttonState = digitalRead(BUTTON_PIN);
+  if (buttonState != lastButtonState) {
+    if (buttonState == 1) {
+      if (state == STATUS_STATE) {
+        state = NUMBERS_STATE;
+        Serial.print("state = ");
+        Serial.println(state);
+      }
+      else {
+        state = STATUS_STATE;
+        Serial.print("state = ");
+        Serial.println(state);
+      }
+    }
+    lastButtonState = buttonState;
+
+  }
+  delay(20);
+
+  //display the numbers or status according to the current state
+  if (state == NUMBERS_STATE) {
+    displayNumbers();
+    // displayNumbersTEST();
+    Serial.println("numbers");
+  } else {
+    displayStatus();
+    Serial.println("stat");
+  }
+}
+
+
+//print WELCOME and the name of the name string on the lcd screen, shift the message to the left and clears the screen
+void welcome(char name[]) {
+  lcd.setCursor(0, 0);
+  lcd.print("Welcome ");
+  lcd.print(name);
+  delay(2000);
+  shiftLeft();
+  lcd.clear();
+}
+
+
+//shift the text to the left
+void shiftLeft() {
+  for (int i = 0; i < 16; i++) {
+    lcd.scrollDisplayLeft();
+    delay (25);
+  }
+}
+
+//
+void displayStatus() {
+  /*
+    if (XXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("I'M VERY THIRSTY");
+    lcd.setCursor(0, 1);
+    lcd.print("GIVE ME WATER ! ");
+    } else if (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("I'M SO HOT, COOL");
+    lcd.setCursor(0, 1);
+    lcd.print("DOWN THE TEMP' !");
+    } else if (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("GRRRRRRRRRRR    ");
+    lcd.setCursor(0, 1);
+    lcd.print("IT IS SO COLD   ");
+    } else if (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("I CAN'T SEE SHIT");
+    lcd.setCursor(0, 1);
+    lcd.print("GIMME MORE LIGHT");
+    } else if (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("WAY TO HUMID FOR");
+    lcd.setCursor(0, 1);
+    lcd.print("ME, DRY THE AIR ");
+    } else if (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("I AM DROWNING IN");
+    lcd.setCursor(0, 1);
+    lcd.print("ALL THAT WATER  ");
+    } else (XXXXXX) {
+    lcd.setCursor(0, 0);
+    lcd.print("ALL GOOD MATE,  ");
+    lcd.setCursor(0, 1);
+    lcd.print("GREAT CONDITIONS");
+    }*/
+
+
+  // FOR TESSSSSSST
+  lcd.setCursor(0, 0);
+  lcd.print("ALL GOOD MATE,  ");
+  lcd.setCursor(0, 1);
+  lcd.print("GREAT CONDITIONS");
+}
+
+void displayNumbers () {
+  float temperature;
+  float humidity;
+  if ( measure_environment( &temperature, &humidity ) == true )
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("T=");
+    lcd.print(int(temperature));
+    lcd.write(1);
+    lcd.print("C    H=");
+    lcd.print(int(humidity));
+    lcd.print("%   ");
+    printLight();
+    printWater();
+  }
+
+}
+
+
+
+
+void displayNumbersTEST () {
+  lcd.setCursor(0, 0);
+  lcd.print("NUMBERS");
+}
+
+
+/*
+  The readSensors function turns on the power in the port 4 to get the waterLevelValue and turn the power off.
+  One commonly known issue with these sensors is their short lifespan when exposed to a moist environment. Having power applied to the probe constantly speeds the rate of corrosion significantly.
+  To overcome this, we recommend that you do not power the sensor constantly, but power it only when you take the readings.
+*/
+int readSensor() {
+  digitalWrite(sensorPower, HIGH);  // Turn the sensor ON
+  delay(10);              // wait 10 milliseconds
+  waterLevelValue = analogRead(sensorPin);    // Read the analog value form sensor
+  digitalWrite(sensorPower, LOW);   // Turn the sensor OFF
+  return waterLevelValue;             // send current reading
+}
+
+//the printWater function gets the reading from the readSensor function print it on the lcd screen
+void printWater() {
+  int level = readSensor();
+  lcd.setCursor(10, 1);
+  lcd.print("W=");
+  lcd.print(level);
+  delay(1000);
+}
+
+//the printLight function gets the reading from the analog pResistor port print it on the lcd screen
+void printLight() {
+  lightValue = analogRead(pResistor);
+  // if LightValue > 150 there is not enough light for the plant and the l
+  //value chosen through simulations"150"
+  if (lightValue > 150) {
+    digitalWrite(ledPin, LOW);  //Turn led off
+  } else {
+    digitalWrite(ledPin, HIGH); //Turn led on
+  }
+  lcd.setCursor(0, 1);
+  lcd.print("L=");
+  if (lightValue > 150) {
+    lcd.print("GOOD   ");
+  } else {
+    lcd.print("TOO LOW");
+  }
+
+  // delay(500); //Small del
+}
